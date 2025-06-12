@@ -1,19 +1,117 @@
 package com.boma.focus.tracker.service;
 
+import com.boma.focus.tracker.dto.request.CreateFocusSessionRequest;
+import com.boma.focus.tracker.dto.request.QueryFocusSession;
+import com.boma.focus.tracker.dto.response.FocusSessionResponse;
 import com.boma.focus.tracker.model.FocusSession;
 import com.boma.focus.tracker.repository.FocusSessionRepo;
+import com.boma.focus.tracker.repository.UserRepo;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Optional;
+
 @Service
+@RequiredArgsConstructor
 public class FocusSessionService {
     private final FocusSessionRepo focusSessionRepo;
+    private final UserService userService;
+    private final UserRepo userRepo;
+    private final ModelMapper modelMapper;
 
-    public FocusSessionService(FocusSessionRepo focusSessionRepo) {
-        this.focusSessionRepo = focusSessionRepo;
+    public FocusSessionResponse startFocusSession(CreateFocusSessionRequest request) {
+        long userId = userService.getUserId();
+        FocusSession newFocusSession = new FocusSession();
+        newFocusSession.setStartTime(request.getStartTime());
+        newFocusSession.setOnBreak(false);
+        newFocusSession.setUser(userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found")));
+
+        focusSessionRepo.save(newFocusSession);
+        return modelMapper.map(newFocusSession, FocusSessionResponse.class);
     }
 
-    public FocusSession startFocusSession() {
-        FocusSession newFocusSession = new FocusSession();
-        return focusSessionRepo.save(newFocusSession);
+    public FocusSessionResponse endFocusSession(long focusSessionId) {
+        long userId = userService.getUserId();
+        FocusSession focusSession = focusSessionRepo.findById(focusSessionId)
+                .orElseThrow(()-> new IllegalArgumentException("Focus session not found"));
+
+        if (focusSession.getUser() == null || focusSession.getUser().getId() != userId) {
+            LocalDateTime endTime = LocalDateTime.now();
+            focusSession.setEndTime(LocalDateTime.now());
+
+            long duration = Duration.between(focusSession.getStartTime(), endTime).toSeconds();
+            focusSession.setDuration(duration);
+
+            focusSessionRepo.save(focusSession);
+            return modelMapper.map(focusSession, FocusSessionResponse.class);
+        }
+        throw new IllegalArgumentException("Current user can't edit this focus session");
+    }
+
+    public Page<FocusSessionResponse> getAllSessions(QueryFocusSession request) {
+        long userId = userService.getUserId();
+
+        Pageable pageable = PageRequest.of(request.getPage(), request.getSize());
+        Page<FocusSession> focusSessions = focusSessionRepo.findAllByUserId(userId, pageable);
+
+        if (focusSessions.isEmpty()) {
+            return Page.empty();
+        }
+        return focusSessions.map(focusSession -> {
+            FocusSessionResponse response = modelMapper.map(focusSession, FocusSessionResponse.class);
+            return response;
+        });
+
+    }
+
+    public FocusSessionResponse getActiveSession(long id) {
+        long userId = userService.getUserId();
+        FocusSession focusSession = focusSessionRepo.findByUserIdAndOnBreakFalseAndEndTimeIsNull(userId)
+                .orElseThrow(()-> new IllegalArgumentException("Active focus session not found"));
+
+        return modelMapper.map(focusSession, FocusSessionResponse.class);
+    }
+
+    public Void pauseSession(long focusSessionId) {
+        long userId = userService.getUserId();
+
+        FocusSession focusSession = focusSessionRepo.findById(focusSessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Focus session not found"));
+
+        if (focusSession.getUser() != null || focusSession.getUser().getId() == userId) {
+            if (focusSession.isOnBreak()) {
+                throw new IllegalStateException("Focus session is already on break");
+            }
+            focusSession.setOnBreak(true);
+            focusSessionRepo.save(focusSession);
+        }
+        throw new IllegalArgumentException("Current user can't pause this focus session");
+
+    }
+
+    public void resumeSession(long focusSessionId) {
+        long userId = userService.getUserId();
+
+        FocusSession focusSession = focusSessionRepo.findById(focusSessionId)
+                .orElseThrow(() -> new IllegalArgumentException("Focus session not found"));
+
+        if (focusSession.getUser() != null || focusSession.getUser().getId() == userId) {
+            if (focusSession.isOnBreak()) {
+                focusSession.setOnBreak(true);
+                focusSessionRepo.save(focusSession);
+            }
+            throw new IllegalStateException("Focus session is already on break");
+
+        }
+        throw new IllegalArgumentException("Current user can't pause this focus session");
     }
 }

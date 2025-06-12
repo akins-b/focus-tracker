@@ -5,24 +5,27 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
-@Data
 @Entity
-public class FocusSession {
+@Data
+public class BreakSession {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private long id;
 
     @ManyToOne
+    @JoinColumn(name = "focus_session_id", nullable = false)
+    private FocusSession focusSession;
+
+    @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
-    Users user;
+    private Users user;
 
     @Column(nullable = false)
-    private LocalDateTime startTime;
+    private LocalDateTime breakStartTime;
 
-    private LocalDateTime endTime;
+    private LocalDateTime breakEndTime;
 
     private long duration;
 
-    private boolean onBreak;
-
+    private boolean isCompleted;
 }

@@ -1,35 +1,50 @@
 package com.boma.focus.tracker.controller;
 
-import com.boma.focus.tracker.model.FocusSession;
+import com.boma.focus.tracker.dto.request.CreateFocusSessionRequest;
+import com.boma.focus.tracker.dto.request.QueryFocusSession;
+import com.boma.focus.tracker.dto.response.FocusSessionResponse;
 import com.boma.focus.tracker.service.FocusSessionService;
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/focus-session")
+@RequestMapping("/sessions")
+@RequiredArgsConstructor
 public class FocusSessionController {
     private final FocusSessionService focusSessionService;
 
-    public FocusSessionController(FocusSessionService focusSessionService) {
-        this.focusSessionService = focusSessionService;
-    }
-
     @PostMapping("/start")
-    public FocusSession startFocusSession() {
-        return focusSessionService.startFocusSession();
+    public ResponseEntity<FocusSessionResponse> startFocusSession(@RequestBody CreateFocusSessionRequest request) {
+        return ResponseEntity.ok(focusSessionService.startFocusSession(request));
     }
 
-    @GetMapping("test")
-    public String stringReturn(HttpServletRequest request){
-        return "Hello " + request.getSession().getId();
+    @PostMapping("/end")
+    public ResponseEntity<FocusSessionResponse> endFocusSession(@RequestParam long focusSessionId) {
+        return ResponseEntity.ok(focusSessionService.endFocusSession(focusSessionId));
     }
 
-    @GetMapping("/test1")
-    public  String test1(){
-        return "hello";
+    @PostMapping("/pause")
+    public ResponseEntity<Void> pauseFocusSession(@RequestParam long focusSessionId) {
+        focusSessionService.pauseSession(focusSessionId);
+        return ResponseEntity.noContent().build();
     }
-//    @PostMapping("/end")
-//    public FocusSession endFocusSession(@RequestBody FocusSession focusSession) {
-//        return focusSessionService.endFocusSession(focusSession);
-//    }
+
+    @PostMapping("/resume")
+    public ResponseEntity<Void> resumeFocusSession(@RequestParam long focusSessionId){
+        focusSessionService.resumeSession(focusSessionId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<Page<FocusSessionResponse>> getAllFocusSessions(QueryFocusSession request) {
+        return ResponseEntity.ok(focusSessionService.getAllSessions(request));
+    }
+
+    @GetMapping("/active/{id}")
+    public ResponseEntity<FocusSessionResponse> getActiveFocusSession(@PathVariable long id) {
+        return ResponseEntity.ok(focusSessionService.getActiveSession(id));
+    }
 }
