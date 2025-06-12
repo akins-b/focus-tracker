@@ -31,7 +31,7 @@ public class FocusSessionService {
         long userId = userService.getUserId();
         FocusSession newFocusSession = new FocusSession();
         newFocusSession.setStartTime(request.getStartTime());
-        newFocusSession.setOnBreak(false);
+        newFocusSession.setPaused(request.isPaused());
         newFocusSession.setUser(userRepo.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found")));
 
@@ -44,11 +44,23 @@ public class FocusSessionService {
         FocusSession focusSession = focusSessionRepo.findById(focusSessionId)
                 .orElseThrow(()-> new IllegalArgumentException("Focus session not found"));
 
-        if (focusSession.getUser() == null || focusSession.getUser().getId() != userId) {
+        if (focusSession.getUser() != null && focusSession.getUser().getId() == userId) {
             LocalDateTime endTime = LocalDateTime.now();
-            focusSession.setEndTime(LocalDateTime.now());
+            focusSession.setEndTime(endTime);
 
-            long duration = Duration.between(focusSession.getStartTime(), endTime).toSeconds();
+            long durationBeforeBreak;
+            long durationAfterBreak = 0;
+
+            if (focusSession.getPauseStartTime() != null) {
+                durationBeforeBreak = Duration.between(focusSession.getStartTime(), focusSession.getPauseStartTime()).toSeconds();
+            } else {
+                durationBeforeBreak = Duration.between(focusSession.getStartTime(), endTime).toSeconds();
+            }
+
+            if (focusSession.getPauseEndTime() != null) {
+                durationAfterBreak = Duration.between(focusSession.getPauseEndTime(), endTime).toSeconds();
+            }
+            long duration = durationBeforeBreak + durationAfterBreak;
             focusSession.setDuration(duration);
 
             focusSessionRepo.save(focusSession);
@@ -73,9 +85,9 @@ public class FocusSessionService {
 
     }
 
-    public FocusSessionResponse getActiveSession(long id) {
+    public FocusSessionResponse getActiveSession() {
         long userId = userService.getUserId();
-        FocusSession focusSession = focusSessionRepo.findByUserIdAndOnBreakFalseAndEndTimeIsNull(userId)
+        FocusSession focusSession = focusSessionRepo.findByUserIdAndPausedFalseAndEndTimeIsNull(userId)
                 .orElseThrow(()-> new IllegalArgumentException("Active focus session not found"));
 
         return modelMapper.map(focusSession, FocusSessionResponse.class);
@@ -87,11 +99,12 @@ public class FocusSessionService {
         FocusSession focusSession = focusSessionRepo.findById(focusSessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Focus session not found"));
 
-        if (focusSession.getUser() != null || focusSession.getUser().getId() == userId) {
-            if (focusSession.isOnBreak()) {
-                throw new IllegalStateException("Focus session is already on break");
+        if (focusSession.getUser() != null && focusSession.getUser().getId() == userId) {
+            if (focusSession.isPaused()) {
+                throw new IllegalStateException("Focus session is already paused");
             }
-            focusSession.setOnBreak(true);
+            focusSession.setPaused(true);
+            focusSession.setPauseStartTime(LocalDateTime.now());
             focusSessionRepo.save(focusSession);
         }
         throw new IllegalArgumentException("Current user can't pause this focus session");
@@ -104,9 +117,10 @@ public class FocusSessionService {
         FocusSession focusSession = focusSessionRepo.findById(focusSessionId)
                 .orElseThrow(() -> new IllegalArgumentException("Focus session not found"));
 
-        if (focusSession.getUser() != null || focusSession.getUser().getId() == userId) {
-            if (focusSession.isOnBreak()) {
-                focusSession.setOnBreak(true);
+        if (focusSession.getUser() != null && focusSession.getUser().getId() == userId) {
+            if (focusSession.isPaused()) {
+                focusSession.setPaused(false);
+                focusSession.setPauseEndTime(LocalDateTime.now());
                 focusSessionRepo.save(focusSession);
             }
             throw new IllegalStateException("Focus session is already on break");

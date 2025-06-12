@@ -18,11 +18,10 @@ public class FocusSession {
 
     @Column(nullable = false)
     private LocalDateTime startTime;
-
     private LocalDateTime endTime;
-
     private long duration;
-
-    private boolean onBreak;
+    private boolean paused;
+    private LocalDateTime pauseStartTime;
+    private LocalDateTime pauseEndTime;
 
 }

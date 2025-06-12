@@ -9,4 +9,5 @@ import java.time.LocalDateTime;
 public class CreateBreakSessionRequest {
     long focusSessionId;
     LocalDateTime breakStartTime;
+    boolean isCompleted = false;
 }

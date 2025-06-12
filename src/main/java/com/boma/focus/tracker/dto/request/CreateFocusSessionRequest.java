@@ -8,4 +8,5 @@ import java.time.LocalDateTime;
 public class CreateFocusSessionRequest {
     long userId;
     LocalDateTime startTime;
+    boolean paused = false;
 }

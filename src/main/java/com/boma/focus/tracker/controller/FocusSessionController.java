@@ -43,8 +43,8 @@ public class FocusSessionController {
         return ResponseEntity.ok(focusSessionService.getAllSessions(request));
     }
 
-    @GetMapping("/active/{id}")
-    public ResponseEntity<FocusSessionResponse> getActiveFocusSession(@PathVariable long id) {
-        return ResponseEntity.ok(focusSessionService.getActiveSession(id));
+    @GetMapping("/active")
+    public ResponseEntity<FocusSessionResponse> getActiveFocusSession() {
+        return ResponseEntity.ok(focusSessionService.getActiveSession());
     }
 }

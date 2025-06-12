@@ -1,10 +1,14 @@
 package com.boma.focus.tracker.controller;
 
 import com.boma.focus.tracker.dto.request.CreateBreakSessionRequest;
+import com.boma.focus.tracker.dto.request.QueryBreakSession;
 import com.boma.focus.tracker.dto.request.UpdateBreakSessionRequest;
 import com.boma.focus.tracker.dto.response.BreakSessionResponse;
 import com.boma.focus.tracker.service.BreakSessionService;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
+import org.apache.coyote.Response;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -31,6 +35,11 @@ public class BreakSessionController {
     @GetMapping("/active")
     public ResponseEntity<BreakSessionResponse> getActiveBreakSession() {
         return ResponseEntity.ok(breakSessionService.getActiveBreakSession());
+    }
+
+    @GetMapping("/all")
+    public ResponseEntity<Page<BreakSessionResponse>> getAllBreaks(QueryBreakSession request) {
+        return ResponseEntity.ok(breakSessionService.getAllBreaks(request));
     }
 
 }

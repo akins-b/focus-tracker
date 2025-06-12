@@ -1,6 +1,7 @@
 package com.boma.focus.tracker.service;
 
 import com.boma.focus.tracker.dto.request.CreateBreakSessionRequest;
+import com.boma.focus.tracker.dto.request.QueryBreakSession;
 import com.boma.focus.tracker.dto.request.UpdateBreakSessionRequest;
 import com.boma.focus.tracker.dto.response.BreakSessionResponse;
 import com.boma.focus.tracker.model.BreakSession;
@@ -8,8 +9,12 @@ import com.boma.focus.tracker.model.FocusSession;
 import com.boma.focus.tracker.repository.BreakSessionRepo;
 import com.boma.focus.tracker.repository.FocusSessionRepo;
 import com.boma.focus.tracker.repository.UserRepo;
+import lombok.AllArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.modelmapper.ModelMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -32,19 +37,20 @@ public class BreakSessionService {
             throw new IllegalArgumentException("Current user can't edit this focus session");
         }
 
-        if (focusSession.isOnBreak()) {
+        BreakSession breakSession = new BreakSession();
+
+        if (focusSession.isPaused()) {
+            breakSession.setFocusSession(focusSession);
+            breakSession.setUser(userRepo.findById(userId)
+                    .orElseThrow(() -> new IllegalArgumentException("User not found")));
+            breakSession.setBreakStartTime(request.getBreakStartTime());
+            breakSessionRepo.save(breakSession);
+        }
+        else {
             throw new IllegalStateException("Focus session is already on break");
         }
-        focusSession.setOnBreak(true);
-        focusSessionRepo.save(focusSession);
 
-        BreakSession breakSession = new BreakSession();
-        breakSession.setFocusSession(focusSession);
-        breakSession.setUser(userRepo.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found")));
-        breakSession.setBreakStartTime(request.getBreakStartTime());
 
-        breakSessionRepo.save(breakSession);
         return modelMapper.map(breakSession, BreakSessionResponse.class);
     }
 
@@ -53,7 +59,7 @@ public class BreakSessionService {
         FocusSession focusSession = focusSessionRepo.findById(request.getFocusSessionId())
                 .orElseThrow(() -> new IllegalArgumentException("Focus session not found"));
 
-        BreakSession breakSession = breakSessionRepo.findByBreakSessionIdAndFocusSession(
+        BreakSession breakSession = breakSessionRepo.findByIdAndFocusSession(
                 request.getBreakSessionId(), focusSession)
                 .orElseThrow(() -> new IllegalArgumentException("Break session not found"));
 
@@ -66,8 +72,6 @@ public class BreakSessionService {
 
             breakSessionRepo.save(breakSession);
 
-            focusSession.setOnBreak(false);
-            focusSessionRepo.save(focusSession);
             return modelMapper.map(breakSession, BreakSessionResponse.class);
         }
         else {
@@ -81,5 +85,19 @@ public class BreakSessionService {
                 .orElseThrow(() -> new IllegalArgumentException("Active break session not found"));
 
         return modelMapper.map(breakSession, BreakSessionResponse.class);
+    }
+
+    public Page<BreakSessionResponse> getAllBreaks(QueryBreakSession request) {
+        long userId = userService.getUserId();
+        Pageable Pageable = PageRequest.of(request.getPage(), request.getSize());
+
+        Page<BreakSession> breakSessions = breakSessionRepo.findAllByUserId(userId, Pageable);
+        if (breakSessions.isEmpty()) {
+            return Page.empty();
+        }
+        return breakSessions.map(breakSession -> {
+            BreakSessionResponse response = modelMapper.map(breakSession, BreakSessionResponse.class);
+            return response;
+        });
     }
 }

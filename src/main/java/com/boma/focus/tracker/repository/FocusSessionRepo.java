@@ -12,5 +12,5 @@ import java.util.Optional;
 public interface FocusSessionRepo extends JpaRepository<FocusSession, Long> {
     Optional<FocusSession> findById(Long id);
     Page<FocusSession> findAllByUserId(long userId, Pageable pageable);
-    Optional<FocusSession> findByUserIdAndOnBreakFalseAndEndTimeIsNull(long userId);
+    Optional<FocusSession> findByUserIdAndPausedFalseAndEndTimeIsNull(long userId);
 }
